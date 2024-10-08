@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User, Group
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
 from .models import UserProfile
 
@@ -56,22 +57,6 @@ class CustomerRegistrationSerializer(serializers.ModelSerializer):
         
         return customer
 
-class CustomerLoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField()
-
-    def validate(self, attrs):
-        username = attrs.get('username')
-        password = attrs.get('password')
-
-        customer = authenticate(username=username, password=password)
-
-        if customer is None:
-            raise serializers.ValidationError("Invalid username or password.")
-        
-        attrs['customer'] = customer
-        return attrs  
-
 class CustomerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
@@ -85,3 +70,13 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        user = self.user
+        
+        # Get user role (Admin, Operator, Customer)
+        roles = user.groups.values_list('name', flat=True)
+        data['roles'] = list(roles)
+        
+        return data
